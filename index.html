@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>STO Tracking Summary Dashboard</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script id="tailwind-config">
+    try {
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "surface-container": "#ededf9",
+                "border-subtle": "#F4F4F5",
+                "surface-container-low": "#f3f3fe",
+                "success": "#16A34A",
+                "on-secondary-fixed": "#25005a",
+                "surface": "#FFFFFF",
+                "primary-fixed": "#dbe1ff",
+                "on-primary": "#ffffff",
+                "warning": "#CA8A04",
+                "on-background": "#191b23",
+                "surface-bright": "#faf8ff",
+                "error": "#DC2626",
+                "info": "#2563EB",
+                "on-primary-container": "#eeefff",
+                "tertiary-fixed": "#dce2f3",
+                "surface-tint": "#0053db",
+                "error-container": "#ffdad6",
+                "primary-container": "#2563eb",
+                "on-secondary-container": "#fffbff",
+                "on-tertiary-fixed-variant": "#404754",
+                "on-primary-fixed": "#00174b",
+                "outline-variant": "#c3c6d7",
+                "surface-container-highest": "#e1e2ed",
+                "on-secondary-fixed-variant": "#5a00c6",
+                "background": "#FAFAFA",
+                "secondary-fixed-dim": "#d2bbff",
+                "on-surface": "#191b23",
+                "text-muted": "#52525B",
+                "surface-dim": "#d9d9e5",
+                "tertiary": "#4e5562",
+                "on-surface-variant": "#434655",
+                "secondary-container": "#8a4cfc",
+                "on-secondary": "#ffffff",
+                "surface-variant": "#e1e2ed",
+                "on-tertiary-fixed": "#151c27",
+                "primary": "#2563eb",
+                "inverse-on-surface": "#f0f0fb",
+                "on-tertiary": "#ffffff",
+                "surface-container-lowest": "#ffffff",
+                "tertiary-container": "#666d7b",
+                "primary-fixed-dim": "#b4c5ff",
+                "outline": "#737686",
+                "on-primary-fixed-variant": "#003ea8",
+                "inverse-surface": "#2e3039",
+                "surface-container-high": "#e7e7f3",
+                "inverse-primary": "#b4c5ff",
+                "tertiary-fixed-dim": "#c0c7d6",
+                "secondary": "#712ae2",
+                "on-error-container": "#93000a",
+                "on-tertiary-container": "#eaf0ff",
+                "on-error": "#ffffff",
+                "border-medium": "#E4E4E7",
+                "secondary-fixed": "#eaddff"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "lg": "24px",
+                "base": "8px",
+                "sidebar-width": "280px",
+                "xxl": "48px",
+                "md": "16px",
+                "xl": "32px",
+                "xxxl": "64px",
+                "sm": "8px",
+                "xs": "4px",
+                "content-max-prose": "768px"
+            },
+            "fontFamily": {
+                "display": ["Plus Jakarta Sans"],
+                "caption": ["Inter"],
+                "body": ["Inter"],
+                "code": ["JetBrains Mono"],
+                "body-lg": ["Inter"],
+                "overline": ["Inter"],
+                "headline": ["Plus Jakarta Sans"],
+                "body-sm": ["Inter"],
+                "subhead": ["Plus Jakarta Sans"]
+            }
+          }
+        }
+      }
+    } catch(_e){}
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body overflow-x-hidden">
+    <!-- Hidden File Input -->
+    <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" class="hidden" onchange="processFile(event)">
+
+    <!-- Persistent SideNavBar -->
+    <nav class="w-sidebar-width h-screen fixed left-0 top-0 bg-surface border-r border-border-subtle flex flex-col py-xl z-50">
+        <div class="px-md mb-xxl">
+            <div class="flex items-center gap-base mb-xs">
+                <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">analytics</span>
+                <span class="font-headline text-subhead font-extrabold text-primary tracking-tight">STO Manager</span>
+            </div>
+            <p class="text-on-surface-variant text-caption px-xs opacity-70">Enterprise Portal</p>
+        </div>
+        <div class="flex-1 space-y-xs px-xs" id="main-nav">
+            <a id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-link flex items-center h-[40px] px-md transition-all duration-200 ease-in-out cursor-pointer rounded-lg bg-surface-container text-primary font-semibold">
+                <span class="material-symbols-outlined mr-md">dashboard</span>
+                <span class="font-body text-body">Dashboard</span>
+            </a>
+            <a id="nav-check-sto" onclick="switchTab('check-sto')" class="nav-link flex items-center h-[40px] text-on-surface-variant hover:bg-surface-container hover:text-primary px-md transition-all duration-200 ease-in-out cursor-pointer rounded-lg">
+                <span class="material-symbols-outlined mr-md">qr_code_scanner</span>
+                <span class="font-body text-body">Check STO (Scanner)</span>
+                <span id="badge-pending" class="ml-auto bg-error text-white text-[10px] px-2 py-0.5 rounded-full font-bold hidden">0</span>
+            </a>
+        </div>
+        <div class="mt-auto px-xs space-y-xs">
+            <button class="w-full mb-md flex items-center justify-center gap-base bg-primary text-on-primary py-sm rounded-lg font-bold hover:brightness-110 transition-all shadow-sm" onclick="document.getElementById('excel-upload').click()">
+                <span class="material-symbols-outlined">upload_file</span>
+                Upload Excel
+            </button>
+            <a class="flex items-center h-[40px] text-on-surface-variant hover:bg-surface-container px-md transition-all duration-200 ease-in-out cursor-pointer rounded-lg">
+                <span class="material-symbols-outlined mr-md">help</span>
+                <span class="font-body text-body">Help</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- TopAppBar -->
+    <header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-surface/80 backdrop-blur-md border-b border-border-subtle flex justify-between items-center px-xl z-40">
+        <div class="flex items-center gap-xl w-1/2">
+            <div class="relative w-full max-w-md">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-body-sm">search</span>
+                <input id="search-input" class="w-full bg-border-subtle border-none rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-primary/20 font-body text-body-sm transition-all" placeholder="Filter D/O or Site..." type="text" onkeyup="applyFilters()">
+            </div>
+            <div class="relative flex-shrink-0">
+                <select id="site-filter" class="appearance-none bg-border-subtle border border-border-medium rounded-lg px-md py-2 pr-10 font-body text-body-sm text-on-surface-variant focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer outline-none" onchange="applyFilters()">
+                    <option value="all">All Stores / Sites</option>
+                </select>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-body-sm">expand_more</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-md">
+            <button class="flex items-center gap-xs px-md py-2 bg-primary text-on-primary rounded-lg font-semibold hover:brightness-110 transition-all shadow-sm" onclick="document.getElementById('excel-upload').click()">
+                <span class="material-symbols-outlined">upload_file</span>
+                Upload Excel
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="ml-sidebar-width mt-16 p-xl min-h-[calc(100vh-64px)]">
+        <div class="max-w-[1400px] mx-auto space-y-xl">
+            
+            <!-- VIEW 1: DASHBOARD -->
+            <div id="view-dashboard" class="space-y-xl">
+                <!-- HEADER SECTION -->
+                <section class="flex justify-between items-start">
+                    <div>
+                        <h1 class="font-headline text-headline text-on-surface flex items-center gap-sm">
+                            <span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings: 'FILL' 1;">analytics</span> STO Tracking Summary Dashboard
+                        </h1>
+                        <p class="font-body text-on-surface-variant mt-xs opacity-80">
+                            สรุปข้อมูลเอกสาร D/O แบบไม่ซ้ำจากไฟล์ Excel (คอลัมน์ C: D/O, H: Site, P: Qty, U: Pending GR, W: Receipt Qty, Y: Delivery Date)
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-xs px-md py-2 bg-surface-container rounded-lg">
+                        <span class="material-symbols-outlined text-success">verified</span>
+                        <span class="text-caption font-bold text-on-surface">System Status: Active</span>
+                    </div>
+                </section>
+
+                <!-- KPIs & ANALYTICS -->
+                <section class="grid grid-cols-1 lg:grid-cols-12 gap-xl">
+                    <div class="lg:col-span-4 space-y-md">
+                        <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center gap-md">
+                            <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <span class="material-symbols-outlined">inventory_2</span>
+                            </div>
+                            <div>
+                                <p class="text-caption font-bold text-on-surface-variant uppercase tracking-wider">Unique D/O Count</p>
+                                <p class="text-subhead font-extrabold text-on-surface" id="stat-total">0 ชุด</p>
+                            </div>
+                        </div>
+                        <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center gap-md">
+                            <div class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
+                                <span class="material-symbols-outlined">pending_actions</span>
+                            </div>
+                            <div>
+                                <p class="text-caption font-bold text-on-surface-variant uppercase tracking-wider">Total Pending GR (U)</p>
+                                <p class="text-subhead font-extrabold text-on-surface" id="stat-pending">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center gap-md">
+                            <div class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
+                                <span class="material-symbols-outlined">fact_check</span>
+                            </div>
+                            <div>
+                                <p class="text-caption font-bold text-on-surface-variant uppercase tracking-wider">Total Receipt Qty (W)</p>
+                                <p class="text-subhead font-extrabold text-on-surface" id="stat-receipt">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DATA PROCESSING SUMMARY WITH SINGLE CLEAN DELIVERY DATE -->
+                    <div class="lg:col-span-8 bg-surface rounded-xl border border-border-subtle p-md shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-xs">
+                                <div>
+                                    <h3 class="font-headline text-body-sm font-bold">Data Processing Summary</h3>
+                                    <p class="text-caption text-on-surface-variant">สรุปสถิติล่าสุดของการประมวลผลข้อมูล (คำนวณตาม Filter ที่เลือก)</p>
+                                </div>
+                                <!-- CLEAN SINGLE DELIVERY DATE DISPLAY BOX -->
+                                <div class="bg-primary/10 border border-primary/20 px-md py-1.5 rounded-lg flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-xl">calendar_today</span>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-primary tracking-wider">Delivery Date (คอลัมน์ Y)</p>
+                                        <p class="font-code font-bold text-body-sm text-primary" id="summary-delivery-date">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-md border-t border-border-subtle pt-md mt-md">
+                            <div>
+                                <p class="text-caption text-on-surface-variant">Total Rows Processed</p>
+                                <p class="font-code font-bold text-body" id="summary-total-rows">0 รายการ</p>
+                            </div>
+                            <div>
+                                <p class="text-caption text-on-surface-variant">Total Qty Ordered (P)</p>
+                                <p class="font-code font-bold text-body" id="summary-total-qty">0</p>
+                            </div>
+                            <div>
+                                <p class="text-caption text-on-surface-variant">Completion Rate</p>
+                                <p class="font-code font-bold text-body text-success" id="summary-completion">0%</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SUMMARY TABLE -->
+                <section class="space-y-md">
+                    <div class="flex justify-between items-center px-1">
+                        <div class="space-y-1">
+                            <h2 class="font-headline text-subhead text-on-surface">ผลการสรุปข้อมูล (Unique D/O Summary)</h2>
+                            <p class="text-caption text-on-surface-variant font-medium" id="table-stats">Waiting for data upload...</p>
+                        </div>
+                        <div class="flex gap-sm">
+                            <button class="flex items-center gap-xs px-3 py-1.5 text-caption font-bold text-on-surface border border-border-medium rounded hover:bg-surface-container transition-all" onclick="exportToCSV()">
+                                <span class="material-symbols-outlined text-sm">download</span> Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface rounded-xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-border-subtle overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse" id="summary-table">
+                                <thead class="bg-surface-container-low border-b border-border-subtle">
+                                    <tr>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap">#</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap">Check</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap">D/O (Column C)</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap">Site (Column H)</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-center">Item Count</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-right">Qty Order (P)</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-right">Pending GR (U)</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-right">Receipt Qty (W)</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-center">Status</th>
+                                        <th class="px-md py-4 text-overline text-on-surface-variant whitespace-nowrap text-center">Detail</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border-subtle" id="table-body">
+                                    <tr id="empty-state">
+                                        <td class="px-md py-xxl text-center text-on-surface-variant opacity-60" colspan="10">
+                                            <div class="flex flex-col items-center gap-sm">
+                                                <span class="material-symbols-outlined text-4xl">bar_chart_off</span>
+                                                <p class="font-body text-body-sm">No data available. Please click 'Upload Excel' at the top right.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW 2: CHECK STO (SCANNER) -->
+            <div id="view-check-sto" class="space-y-xl hidden">
+                <section class="flex justify-between items-start">
+                    <div>
+                        <h1 class="font-headline text-headline text-on-surface flex items-center gap-sm">
+                            <span class="material-symbols-outlined text-primary text-4xl">qr_code_scanner</span> Recheck STO - สแกนตรวจสอบใบนำส่งสินค้า
+                        </h1>
+                        <p class="font-body text-on-surface-variant mt-xs opacity-80">
+                            สแกน QR Code / บาร์โค้ดจากใบนำส่งสินค้าเพื่อ Recheck รายการ D/O ที่ได้รับจริงจากคลัง
+                        </p>
+                    </div>
+                </section>
+
+                <!-- SCANNER INPUT CARD -->
+                <section class="bg-surface rounded-xl border-2 border-primary/30 p-xl shadow-md space-y-md">
+                    <div class="flex items-center gap-md">
+                        <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                            <span class="material-symbols-outlined text-3xl">center_focus_weak</span>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-caption font-bold uppercase tracking-wider text-primary mb-1">Scanner Input (ยิงบาร์โค้ด / สแกน QR Code ที่นี่)</label>
+                            <input type="text" id="scanner-input" class="w-full bg-surface-container border-2 border-primary rounded-lg px-md py-3 text-lg font-code font-bold focus:ring-4 focus:ring-primary/20 outline-none" placeholder="พร้อมสแกน... (ยิง QR Code หรือพิมพ์เลข D/O แล้วกด Enter)" autofocus onkeypress="handleScan(event)">
+                        </div>
+                        <button onclick="manualScanSubmit()" class="px-lg py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover transition-all flex items-center gap-xs">
+                            <span class="material-symbols-outlined">check_circle</span> ตรวจสอบ D/O
+                        </button>
+                    </div>
+                    <p id="scan-feedback" class="text-body-sm font-semibold text-on-surface-variant min-h-[24px]"></p>
+                </section>
+
+                <!-- SUMMARY COUNTERS FOR CHECKING -->
+                <section class="grid grid-cols-1 md:grid-cols-3 gap-md">
+                    <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-caption font-bold text-on-surface-variant uppercase">D/O ทั้งหมดในระบบ</p>
+                            <p class="text-subhead font-extrabold text-on-surface" id="chk-total">0 ชุด</p>
+                        </div>
+                        <span class="material-symbols-outlined text-primary text-3xl">local_shipping</span>
+                    </div>
+                    <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-caption font-bold text-success uppercase">รับแล้ว (Received / Checked)</p>
+                            <p class="text-subhead font-extrabold text-success" id="chk-received">0 ชุด</p>
+                        </div>
+                        <span class="material-symbols-outlined text-success text-3xl">task_alt</span>
+                    </div>
+                    <div class="bg-surface p-md rounded-xl border border-border-subtle shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-caption font-bold text-error uppercase">ยังไม่มาส่ง (Missing D/O)</p>
+                            <p class="text-subhead font-extrabold text-error" id="chk-missing">0 ชุด</p>
+                        </div>
+                        <span class="material-symbols-outlined text-error text-3xl">warning</span>
+                    </div>
+                </section>
+
+                <!-- MISSING & CHECKED LIST TABLE -->
+                <section class="space-y-md">
+                    <div class="flex justify-between items-center">
+                        <h2 class="font-headline text-subhead text-on-surface">ตาราง Recheck D/O รายการที่ไม่มาส่ง & รับแล้ว</h2>
+                        <div class="flex gap-xs">
+                            <button onclick="filterCheckTable('all')" class="px-3 py-1.5 text-caption font-bold rounded border border-border-medium hover:bg-surface-container">ทั้งหมด</button>
+                            <button onclick="filterCheckTable('missing')" class="px-3 py-1.5 text-caption font-bold rounded bg-error/10 text-error border border-error/20 hover:bg-error/20">เฉพาะที่ไม่มาส่ง</button>
+                            <button onclick="filterCheckTable('checked')" class="px-3 py-1.5 text-caption font-bold rounded bg-success/10 text-success border border-success/20 hover:bg-success/20">เฉพาะที่รับแล้ว</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface rounded-xl border border-border-subtle overflow-hidden shadow-sm">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-surface-container-low border-b border-border-subtle">
+                                <tr>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant">#</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant">สถานะการรับ</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant">D/O Number</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant">Site</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant text-center">รายการสินค้า</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant text-right">จำนวนสั่ง (P)</th>
+                                    <th class="px-md py-4 text-overline text-on-surface-variant text-center">ดูรายละเอียด</th>
+                                </tr>
+                            </thead>
+                            <tbody id="check-table-body" class="divide-y divide-border-subtle">
+                                <tr>
+                                    <td colspan="7" class="px-md py-xl text-center text-on-surface-variant opacity-60">ยังไม่มีข้อมูล กรุณาอัปโหลดไฟล์ Excel ก่อนทำการ Recheck</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL FOR D/O DETAILS -->
+    <div id="detail-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-md">
+        <div class="bg-surface rounded-xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-border-medium">
+            <div class="p-md border-b border-border-subtle flex justify-between items-center bg-surface-container-low">
+                <div>
+                    <h3 class="font-headline text-body-sm font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">description</span> 
+                        รายละเอียดเอกสาร D/O: <span id="modal-do-num" class="text-primary font-code"></span>
+                    </h3>
+                    <p class="text-caption text-on-surface-variant" id="modal-sub-info"></p>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-md overflow-y-auto flex-1">
+                <table class="w-full text-left text-body-sm">
+                    <thead class="bg-surface-container-low border-b border-border-subtle">
+                        <tr>
+                            <th class="px-3 py-2 text-overline">#</th>
+                            <th class="px-3 py-2 text-overline">Article</th>
+                            <th class="px-3 py-2 text-overline">Short Text</th>
+                            <th class="px-3 py-2 text-overline text-right">Sale Price</th>
+                            <th class="px-3 py-2 text-overline text-right">Receipt Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-table-body" class="divide-y divide-border-subtle font-code">
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-md border-t border-border-subtle flex justify-end">
+                <button onclick="closeModal()" class="px-md py-2 bg-surface-container text-on-surface font-semibold rounded-lg hover:bg-surface-container-high">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalSummary = {};
+        let rawRows = [];
+        let checkedDOs = new Set();
+        let detectedDeliveryDates = new Set();
+
+        let colMap = {
+            do: 2,
+            site: 7,
+            article: 5,
+            salePrice: 6,
+            shortText: 11,
+            qtyOrder: 15,
+            pendingGR: 20,
+            receiptQty: 22,
+            deliveryDate: 23
+        };
+
+        const fileInput = document.getElementById('excel-upload');
+        const tableBody = document.getElementById('table-body');
+        const emptyState = document.getElementById('empty-state');
+        const statsDisplay = document.getElementById('table-stats');
+
+        function switchTab(tab) {
+            const dashView = document.getElementById('view-dashboard');
+            const checkView = document.getElementById('view-check-sto');
+            const dashNav = document.getElementById('nav-dashboard');
+            const checkNav = document.getElementById('nav-check-sto');
+
+            if (tab === 'dashboard') {
+                dashView.classList.remove('hidden');
+                checkView.classList.add('hidden');
+                dashNav.className = "nav-link flex items-center h-[40px] px-md transition-all cursor-pointer rounded-lg bg-surface-container text-primary font-semibold";
+                checkNav.className = "nav-link flex items-center h-[40px] text-on-surface-variant hover:bg-surface-container hover:text-primary px-md transition-all cursor-pointer rounded-lg";
+            } else {
+                dashView.classList.add('hidden');
+                checkView.classList.remove('hidden');
+                checkNav.className = "nav-link flex items-center h-[40px] px-md transition-all cursor-pointer rounded-lg bg-surface-container text-primary font-semibold";
+                dashNav.className = "nav-link flex items-center h-[40px] text-on-surface-variant hover:bg-surface-container hover:text-primary px-md transition-all cursor-pointer rounded-lg";
+                setTimeout(() => document.getElementById('scanner-input').focus(), 100);
+            }
+        }
+
+        // Standardized Date Parser returning DD/MM/YYYY
+        function formatDateVal(val) {
+            if (!val) return '';
+            let d = null;
+
+            if (val instanceof Date && !isNaN(val)) {
+                d = val;
+            } else if (typeof val === 'number') {
+                d = new Date((val - (25567 + 2)) * 86400 * 1000);
+            } else if (typeof val === 'string') {
+                let str = val.trim().split('T')[0].split(' ')[0];
+                if (str.includes('/')) {
+                    let parts = str.split('/');
+                    if (parts[0].length === 4) { // YYYY/MM/DD
+                        d = new Date(parts[0], parts[1] - 1, parts[2]);
+                    } else if (parts[2]) { // MM/DD/YYYY or DD/MM/YYYY
+                        let yr = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+                        let p0 = parseInt(parts[0], 10);
+                        let p1 = parseInt(parts[1], 10);
+                        if (p0 > 12) { // DD/MM/YYYY
+                            d = new Date(yr, p1 - 1, p0);
+                        } else { // MM/DD/YYYY
+                            d = new Date(yr, p0 - 1, p1);
+                        }
+                    }
+                } else if (str.includes('-')) { // YYYY-MM-DD
+                    let parts = str.split('-');
+                    d = new Date(parts[0], parts[1] - 1, parts[2]);
+                }
+            }
+
+            if (d && !isNaN(d.getTime())) {
+                let day = String(d.getDate()).padStart(2, '0');
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let year = d.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+            return String(val).trim();
+        }
+
+        function processFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            statsDisplay.innerText = "กำลังประมวลผลไฟล์...";
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    rawRows = XLSX.utils.sheet_to_json(sheet, {header: 1, raw: false});
+
+                    if (!rawRows || rawRows.length < 2) {
+                        alert("ไฟล์ไม่มีข้อมูล หรือโครงสร้างไม่ถูกต้อง");
+                        return;
+                    }
+
+                    // FIND HEADER ROW
+                    let headerRowIdx = 0;
+                    for (let r = 0; r < Math.min(10, rawRows.length); r++) {
+                        let rowList = rawRows[r] || [];
+                        let rowStr = rowList.map(c => String(c || '')).join(' ');
+                        if (rowStr.includes('D/O') || rowStr.includes('Qty(Order Unit)') || rowStr.includes('Article')) {
+                            headerRowIdx = r;
+                            break;
+                        }
+                    }
+
+                    const header = rawRows[headerRowIdx];
+                    for (let i = 0; i < header.length; i++) {
+                        let cName = String(header[i] || '').trim();
+                        if (cName === 'D/O') colMap.do = i;
+                        if (cName === 'Site') colMap.site = i;
+                        if (cName === 'Article') colMap.article = i;
+                        if (cName === 'Sale Price') colMap.salePrice = i;
+                        if (cName === 'Short Text') colMap.shortText = i;
+                        if (cName.includes('Qty(Order Unit)') || cName.includes('Qty (Order Unit)')) colMap.qtyOrder = i;
+                        if (cName.includes('Pending GR')) colMap.pendingGR = i;
+                        if (cName.includes('Receipt Qty')) colMap.receiptQty = i;
+                        if (cName.includes('Delivery Date')) colMap.deliveryDate = i;
+                    }
+
+                    globalSummary = {};
+                    checkedDOs.clear();
+                    detectedDeliveryDates.clear();
+
+                    for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+                        let row = rawRows[i];
+                        if (!row || row.length === 0) continue;
+
+                        let doNum = row[colMap.do] ? String(row[colMap.do]).trim() : '';
+                        if (!doNum || doNum === 'undefined' || doNum.toLowerCase() === 'd/o') continue;
+
+                        let site = row[colMap.site] ? String(row[colMap.site]).trim() : '-';
+                        let qty = parseFloat(String(row[colMap.qtyOrder] || '0').replace(/,/g, '')) || 0;
+                        let pending = parseFloat(String(row[colMap.pendingGR] || '0').replace(/,/g, '')) || 0;
+                        let receipt = parseFloat(String(row[colMap.receiptQty] || '0').replace(/,/g, '')) || 0;
+
+                        let delDateRaw = row[colMap.deliveryDate];
+                        let formattedDate = formatDateVal(delDateRaw);
+                        if (formattedDate && formattedDate !== '-' && formattedDate.toLowerCase() !== 'delivery date') {
+                            detectedDeliveryDates.add(formattedDate);
+                        }
+
+                        if (!globalSummary[doNum]) {
+                            globalSummary[doNum] = {
+                                doNum: doNum,
+                                site: site,
+                                count: 0,
+                                qty: 0,
+                                pending: 0,
+                                receipt: 0,
+                                deliveryDate: formattedDate,
+                                items: []
+                            };
+                        }
+
+                        globalSummary[doNum].count += 1;
+                        globalSummary[doNum].qty += qty;
+                        globalSummary[doNum].pending += pending;
+                        globalSummary[doNum].receipt += receipt;
+                        globalSummary[doNum].items.push(row);
+                    }
+
+                    // SINGLE CLEAN UNIQUE DELIVERY DATE DISPLAY
+                    const dateArr = Array.from(detectedDeliveryDates).filter(Boolean);
+                    // Take the first clean unique date string to ensure ONLY 1 date is shown!
+                    const displayDateStr = dateArr.length > 0 ? dateArr[0] : 'ไม่ระบุวันที่';
+                    document.getElementById('summary-delivery-date').innerText = displayDateStr;
+
+                    populateSiteDropdown(globalSummary);
+                    renderTable();
+                    renderCheckTable();
+                    updateBadge();
+                } catch (error) {
+                    console.error("Error processing Excel:", error);
+                    alert("เกิดข้อผิดพลาดในการประมวลผลไฟล์ Excel: " + error.message);
+                    statsDisplay.innerText = "เกิดข้อผิดพลาดในการอ่านไฟล์ โปรดตรวจสอบฟอร์แมต Excel";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderTable() {
+            const keys = Object.keys(globalSummary);
+            if (keys.length === 0) {
+                emptyState.style.display = 'table-row';
+                statsDisplay.innerText = "ไม่พบข้อมูล D/O ในไฟล์";
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tableBody.innerHTML = '';
+
+            const searchValue = document.getElementById('search-input').value.toLowerCase().trim();
+            const selectedSite = document.getElementById('site-filter').value;
+
+            let filteredKeys = keys.filter(doId => {
+                const item = globalSummary[doId];
+                const matchSearch = item.doNum.toLowerCase().includes(searchValue) || item.site.toLowerCase().includes(searchValue);
+                const matchSite = (selectedSite === 'all') || (item.site === selectedSite);
+                return matchSearch && matchSite;
+            });
+
+            let index = 1;
+            let sumTotalPending = 0;
+            let sumTotalReceipt = 0;
+            let sumTotalQty = 0;
+            let sumTotalRows = 0;
+
+            filteredKeys.forEach(doId => {
+                const item = globalSummary[doId];
+                
+                sumTotalPending += item.pending;
+                sumTotalReceipt += item.receipt;
+                sumTotalQty += item.qty;
+                sumTotalRows += item.count;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-surface-container-low transition-colors group table-row-item";
+
+                let isChecked = checkedDOs.has(item.doNum);
+
+                let statusColor = "bg-warning/10 text-warning";
+                let statusText = "Partial";
+
+                if (item.pending === 0 && item.receipt > 0) {
+                    statusColor = "bg-success/10 text-success";
+                    statusText = "Completed";
+                } else if (item.receipt === 0) {
+                    statusColor = "bg-error/10 text-error";
+                    statusText = "Not Started";
+                }
+
+                tr.innerHTML = `
+                    <td class="px-md py-4 text-caption text-on-surface-variant font-code">${index++}</td>
+                    <td class="px-md py-4 text-center">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCheck('${item.doNum}', this.checked)" class="w-5 h-5 text-primary border-border-medium rounded focus:ring-primary cursor-pointer">
+                    </td>
+                    <td class="px-md py-4 text-body-sm font-bold text-primary font-code">${item.doNum}</td>
+                    <td class="px-md py-4 text-body-sm text-on-surface">${item.site}</td>
+                    <td class="px-md py-4 text-body-sm text-center font-medium">${item.count} รายการ</td>
+                    <td class="px-md py-4 text-body-sm text-right font-code font-bold">${item.qty.toLocaleString()}</td>
+                    <td class="px-md py-4 text-body-sm text-right font-code text-warning font-medium">${item.pending.toLocaleString()}</td>
+                    <td class="px-md py-4 text-body-sm text-right font-code text-success font-bold">${item.receipt.toLocaleString()}</td>
+                    <td class="px-md py-4 text-center">
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="px-md py-4 text-center">
+                        <button onclick="openDetailModal('${item.doNum}')" class="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors" title="ดูรายการสินค้า">
+                            <span class="material-symbols-outlined text-lg">visibility</span>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            document.getElementById('stat-total').innerText = filteredKeys.length + " ชุด";
+            document.getElementById('stat-pending').innerText = sumTotalPending.toLocaleString();
+            document.getElementById('stat-receipt').innerText = sumTotalReceipt.toLocaleString();
+            
+            document.getElementById('summary-total-rows').innerText = sumTotalRows.toLocaleString() + " รายการ";
+            document.getElementById('summary-total-qty').innerText = sumTotalQty.toLocaleString();
+            let completionRate = sumTotalQty > 0 ? ((sumTotalReceipt / sumTotalQty) * 100).toFixed(1) : 0;
+            document.getElementById('summary-completion').innerText = completionRate + "%";
+
+            statsDisplay.innerText = `แสดงผลสรุปเอกสารที่กรองแล้ว ${filteredKeys.length} ชุด (รวม ${sumTotalRows} รายการ)`;
+        }
+
+        function applyFilters() {
+            renderTable();
+            renderCheckTable();
+        }
+
+        // --- SCANNER & STO RECHECK LOGIC ---
+        function handleScan(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                manualScanSubmit();
+            }
+        }
+
+        function manualScanSubmit() {
+            const input = document.getElementById('scanner-input');
+            let scannedText = input.value.trim();
+            const feedback = document.getElementById('scan-feedback');
+
+            if (!scannedText) return;
+
+            let matchedDO = scannedText.match(/71\d{8}/) || scannedText;
+            if (Array.isArray(matchedDO)) matchedDO = matchedDO[0];
+
+            if (globalSummary[matchedDO]) {
+                checkedDOs.add(matchedDO);
+                feedback.className = "text-body-sm font-bold text-success flex items-center gap-1";
+                feedback.innerHTML = `<span class="material-symbols-outlined">check_circle</span> สแกนสำเร็จ! เอกสาร D/O: ${matchedDO} (Site: ${globalSummary[matchedDO].site}, ${globalSummary[matchedDO].count} รายการ) ได้รับการ Recheck แล้ว`;
+                
+                renderCheckTable();
+                renderTable();
+                updateBadge();
+            } else {
+                feedback.className = "text-body-sm font-bold text-error flex items-center gap-1";
+                feedback.innerHTML = `<span class="material-symbols-outlined">cancel</span> ไม่พบเอกสาร D/O: ${scannedText} ในไฟล์ STO Report นี้!`;
+            }
+
+            input.value = '';
+            input.focus();
+        }
+
+        function toggleCheck(doNum, isChecked) {
+            if (isChecked) {
+                checkedDOs.add(doNum);
+            } else {
+                checkedDOs.delete(doNum);
+            }
+            renderCheckTable();
+            renderTable();
+            updateBadge();
+        }
+
+        function renderCheckTable(filterMode = 'all') {
+            const tbody = document.getElementById('check-table-body');
+            const keys = Object.keys(globalSummary);
+
+            if (keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-md py-xl text-center text-on-surface-variant opacity-60">ยังไม่มีข้อมูล กรุณาอัปโหลดไฟล์ Excel ก่อนทำการ Recheck</td></tr>`;
+                return;
+            }
+
+            const searchValue = document.getElementById('search-input').value.toLowerCase().trim();
+            const selectedSite = document.getElementById('site-filter').value;
+
+            tbody.innerHTML = '';
+            let idx = 1;
+            let receivedCount = 0;
+            let missingCount = 0;
+
+            keys.forEach(doNum => {
+                const item = globalSummary[doNum];
+                const matchSearch = item.doNum.toLowerCase().includes(searchValue) || item.site.toLowerCase().includes(searchValue);
+                const matchSite = (selectedSite === 'all') || (item.site === selectedSite);
+
+                if (!matchSearch || !matchSite) return;
+
+                const isChecked = checkedDOs.has(doNum);
+
+                if (isChecked) receivedCount++; else missingCount++;
+
+                if (filterMode === 'missing' && isChecked) return;
+                if (filterMode === 'checked' && !isChecked) return;
+
+                const tr = document.createElement('tr');
+                tr.className = isChecked ? "bg-success/5 hover:bg-success/10 transition-colors" : "bg-error/5 hover:bg-error/10 transition-colors";
+
+                tr.innerHTML = `
+                    <td class="px-md py-3 text-caption font-code">${idx++}</td>
+                    <td class="px-md py-3">
+                        ${isChecked 
+                            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-bold bg-success text-white"><span class="material-symbols-outlined text-sm">check</span> รับแล้ว (Checked)</span>` 
+                            : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-bold bg-error text-white"><span class="material-symbols-outlined text-sm">close</span> ยังไม่มาส่ง (Missing)</span>`
+                        }
+                    </td>
+                    <td class="px-md py-3 font-code font-bold text-primary">${item.doNum}</td>
+                    <td class="px-md py-3 font-body">${item.site}</td>
+                    <td class="px-md py-3 text-center font-medium">${item.count} รายการ</td>
+                    <td class="px-md py-3 text-right font-code font-bold">${item.qty.toLocaleString()}</td>
+                    <td class="px-md py-3 text-center">
+                        <button onclick="openDetailModal('${item.doNum}')" class="px-3 py-1 bg-surface border border-border-medium rounded hover:bg-surface-container font-caption font-bold text-primary flex items-center gap-1 mx-auto">
+                            <span class="material-symbols-outlined text-sm">visibility</span> ดูสินค้า
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('chk-total').innerText = (receivedCount + missingCount) + " ชุด";
+            document.getElementById('chk-received').innerText = receivedCount + " ชุด";
+            document.getElementById('chk-missing').innerText = missingCount + " ชุด";
+        }
+
+        function filterCheckTable(mode) {
+            renderCheckTable(mode);
+        }
+
+        function updateBadge() {
+            const keys = Object.keys(globalSummary);
+            const badge = document.getElementById('badge-pending');
+            const missing = keys.length - checkedDOs.size;
+
+            if (keys.length > 0 && missing > 0) {
+                badge.innerText = missing;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // --- MODAL DETAILS ---
+        function openDetailModal(doNum) {
+            const item = globalSummary[doNum];
+            if (!item) return;
+
+            document.getElementById('modal-do-num').innerText = doNum;
+            document.getElementById('modal-sub-info').innerText = `Site: ${item.site} | Delivery Date: ${item.deliveryDate || '-'} | ทั้งหมด ${item.count} รายการ`;
+
+            const tbody = document.getElementById('modal-table-body');
+            tbody.innerHTML = '';
+
+            item.items.forEach((row, index) => {
+                const article = row[colMap.article] || '-';
+                const shortText = row[colMap.shortText] || '-';
+                const salePriceRaw = parseFloat(String(row[colMap.salePrice] || '0').replace(/,/g, '')) || 0;
+                const receiptQtyRaw = parseFloat(String(row[colMap.receiptQty] || '0').replace(/,/g, '')) || 0;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-surface-container-low transition-colors">
+                        <td class="px-3 py-3 font-code text-caption">${index + 1}</td>
+                        <td class="px-3 py-3 text-primary font-bold">${article}</td>
+                        <td class="px-3 py-3 text-on-surface font-body font-medium">${shortText}</td>
+                        <td class="px-3 py-3 text-right text-on-surface font-semibold">${salePriceRaw.toLocaleString()}</td>
+                        <td class="px-3 py-3 text-right text-success font-bold">${receiptQtyRaw.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        function populateSiteDropdown(summary) {
+            const select = document.getElementById('site-filter');
+            select.innerHTML = '<option value="all">All Stores / Sites</option>';
+            const sites = new Set();
+            Object.values(summary).forEach(item => sites.add(item.site));
+            sites.forEach(site => {
+                const opt = document.createElement('option');
+                opt.value = site;
+                opt.innerText = "Site: " + site;
+                select.appendChild(opt);
+            });
+        }
+
+        function exportToCSV() {
+            const keys = Object.keys(globalSummary);
+            if (keys.length === 0) {
+                alert("ไม่มีข้อมูลสำหรับส่งออก");
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,No,Check Status,D/O (Col C),Site (Col H),Delivery Date (Col Y),Item Count,Qty Order (Col P),Pending GR (Col U),Receipt Qty (Col W)\n";
+            let idx = 1;
+            keys.forEach(k => {
+                const item = globalSummary[k];
+                const status = checkedDOs.has(k) ? "Received" : "Missing";
+                csvContent += `${idx++},${status},${item.doNum},${item.site},${item.deliveryDate || ''},${item.count},${item.qty},${item.pending},${item.receipt}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "STO_DO_Recheck_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
